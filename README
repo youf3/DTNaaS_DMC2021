@@ -1,0 +1,44 @@
+This is a documentation for API provided by DTN-as-a-Service software stack.
+
+DTNaaS has a connection-oriented agent-orchestrator archtecture that support parallel connections for high-speed data transfer. 
+
+Typical workflow for DTNaaS
+1. Deploy an agent to DTNs and register DTNs information to an orchestrator to get DTN IDs
+2. Test path between DTNs data port
+3. Fetch files to transfer from sender agent
+4. Post file to transfer and number of simultaneous connection to use to the orchestrator, along with their IDs.
+5. Wait for the transfer to finish
+6. Get the transfer information and connect to monitoring service for the performance
+
+To deploy agent and orchestrator, use docker image icair/dtnaas:agent and icair/dtnaas:orchestrator
+$ docker run --name=daas_orchestrator -p5002:5000/tcp --log-opt max-size=50 --rm -d icair/dtnaas:orchestrator
+$ docker run --name=daas_agent --privileged --network=host --log-opt max-size=50 -v $(data_dir):/data --rm icair/dtnaas:agent
+
+client.py shows an example of the workflow and how to use the APIs below to get the transfer executed and dataset pulled.
+It mainly uses an orchestrator to call transfer functions in sender-receiver agents and initiates multiple transfer connections.
+The orchestator is running on Ottawa DTN, and agents are running on Ottawa DTN and a StarLight DTN (r740xd1)
+The code itself should be self explanatory, as the API call has simple interface with json input and output.
+
+API details:
+Agent:
+HTTP_method, URI, description 
+GET, /files/path, returns JSON object with file name and size in the path recursively
+POST, /create_file/, accepts JSON object with file path and size, and create the file in the path
+POST, /create_dir/, accepts JSON object with dir path and create the dir in the path
+GET, /tools, returns a list of available transfer tools
+POST, /sender/tool, start sender using the specified tool using provided parameters
+POST, /receiver/tool, start receiver using the specified tool using provided parameters
+GET, /trim, trims all NVMes in the system
+GET, /poll/tool/, accepts transfer result using specified transfer tool and waits for the transfer to finish
+GET, /free_port/tool/port, force-finish running transfer that is using transfer tool at the specific port
+GET, /cleanup/tool, cleans up existing transfer
+
+Orchestrator:
+HTTP_method, URI, description 
+POST, /DTN, Register an DTN and returns ID
+GET, /DTN/ID, return json object with DTN registered ID
+GET, /ping/ID1/ID2, return latency between DTN with ID1 and ID2
+POST, /transfer/tool/ID1/ID2, start data transfer from DTN with ID1 to DTN with ID2 with provided parameter in JSON and returns transfer ID
+POST, /wait/ID, wait for transfer with ID to finish
+GET, /transfer/ID, return transfer information recorded with ID after they are finished
+POST, /transfer/ID/scale, adjust running transfer with specified parameters
